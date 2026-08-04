@@ -60,7 +60,7 @@ def main() -> None:
 
     checksum = hashlib.sha256(destination.read_bytes()).hexdigest()
     checksum_path = destination.with_suffix(destination.suffix + ".sha256")
-    checksum_path.write_text(f"{checksum}  {destination.name}\n", encoding="ascii")
+    checksum_path.write_bytes(f"{checksum}  {destination.name}\n".encode("ascii"))
 
     print(destination)
     print(checksum_path)
