@@ -1,4 +1,4 @@
-LEFT INTERACT 1.6.0
+LEFT INTERACT 1.6.1
 ===================
 
 A lightweight accessibility addon for WotLK 3.3.5a clients.

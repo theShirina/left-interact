@@ -2,7 +2,7 @@
 ## Title: Left Interact
 ## Notes: Uses left click to interact with NPCs and world objects.
 ## Author: Stefán (theShirina)
-## Version: 1.6.0
+## Version: 1.6.1
 ## SavedVariables: LeftInteractDB
 
 LeftInteract.lua

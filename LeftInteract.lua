@@ -15,6 +15,9 @@ local leftDownTime = nil
 local leftDownX = nil
 local leftDownY = nil
 local deselectBlockedWarningShown = false
+local appliedMode = nil
+local appliedRightMove = nil
+local appliedMovementMode = nil
 
 local function Print(message)
     DEFAULT_CHAT_FRAME:AddMessage("|cff62d8ffLeft Interact:|r " .. message)
@@ -24,8 +27,49 @@ local function InCombat()
     return InCombatLockdown and InCombatLockdown()
 end
 
+local function ConfigSummary(mode, rightMove, movementMode)
+    local interaction
+    if mode == "cursor" then
+        interaction = "Item drag"
+    else
+        interaction = mode == "mouseover" and "NPC only" or "World"
+    end
+    local movement = movementMode == "combined" and "W-compatible" or "Seamless"
+    local rightClick = rightMove and "R-click on" or "R-click off"
+    return interaction .. " / " .. movement .. " / " .. rightClick
+end
+
+local function DesiredConfigSummary()
+    return ConfigSummary(LeftInteractDB.mode, LeftInteractDB.rightMove, LeftInteractDB.movementMode)
+end
+
+local function EffectiveConfigSummary()
+    if not active then
+        return "native bindings"
+    end
+    local effectiveMode = cursorHasItem and "cursor" or appliedMode
+    return ConfigSummary(effectiveMode, appliedRightMove, appliedMovementMode)
+end
+
+local function DesiredMatchesApplied()
+    return active
+        and appliedMode == LeftInteractDB.mode
+        and appliedRightMove == (LeftInteractDB.rightMove and true or false)
+        and appliedMovementMode == LeftInteractDB.movementMode
+end
+
 local function ApplyBindings(silent)
     if InCombat() then
+        if DesiredMatchesApplied() then
+            pendingAction = nil
+            if not silent then
+                Print("Already enabled; no binding change is pending.")
+            end
+            if optionsFrame and optionsFrame.Refresh then
+                optionsFrame:Refresh()
+            end
+            return true
+        end
         pendingAction = active and "refresh" or "enable"
         if not silent then
             if active then
@@ -69,6 +113,9 @@ local function ApplyBindings(silent)
     SetOverrideBinding(controller, true, "SHIFT-BUTTON1", "CAMERAORSELECTORMOVE")
 
     active = true
+    appliedMode = LeftInteractDB.mode
+    appliedRightMove = LeftInteractDB.rightMove and true or false
+    appliedMovementMode = LeftInteractDB.movementMode
     pendingAction = nil
 
     if not silent then
@@ -89,6 +136,16 @@ end
 
 local function RemoveBindings(silent)
     if InCombat() then
+        if not active then
+            pendingAction = nil
+            if not silent then
+                Print("Already disabled; no binding change is pending.")
+            end
+            if optionsFrame and optionsFrame.Refresh then
+                optionsFrame:Refresh()
+            end
+            return true
+        end
         pendingAction = "disable"
         if not silent then
             Print("Will disable after combat.")
@@ -98,6 +155,9 @@ local function RemoveBindings(silent)
 
     ClearOverrideBindings(controller)
     active = false
+    appliedMode = nil
+    appliedRightMove = nil
+    appliedMovementMode = nil
     pendingAction = nil
 
     if not silent then
@@ -120,18 +180,27 @@ local function SetEnabled(enabled, silent)
 end
 
 local function ShowStatus()
-    local state = active and "enabled" or "disabled"
     if pendingAction == "enable" then
-        state = "disabled; enabling after combat"
+        Print("Status: disabled; queued after combat: enable with " .. DesiredConfigSummary() .. ".")
     elseif pendingAction == "disable" then
-        state = "enabled; disabling after combat"
+        Print("Status: enabled; active: " .. EffectiveConfigSummary() .. "; queued after combat: disable.")
     elseif pendingAction == "refresh" then
-        state = "enabled; changes apply after combat"
+        Print("Status: enabled; active: " .. EffectiveConfigSummary() .. "; queued after combat: " .. DesiredConfigSummary() .. ".")
+    elseif active then
+        Print("Status: enabled; active: " .. EffectiveConfigSummary() .. ".")
+    else
+        Print("Status: disabled; active: native bindings.")
     end
-    local mode = LeftInteractDB.mode == "mouseover" and "NPC mouseover" or "full world interaction"
-    local rightMove = LeftInteractDB.rightMove and "on" or "off"
-    local movementMode = LeftInteractDB.movementMode == "combined" and "combined" or "independent"
-    Print("Status: " .. state .. "; mode: " .. mode .. "; right-click movement: " .. rightMove .. " (" .. movementMode .. ").")
+end
+
+local function PrintSettingChange(applied, activeMessage, queuedMessage, savedMessage)
+    if not LeftInteractDB.enabled then
+        Print(savedMessage)
+    elseif applied then
+        Print(activeMessage)
+    else
+        Print(queuedMessage)
+    end
 end
 
 SLASH_LEFTINTERACT1 = "/leftinteract"
@@ -150,48 +219,54 @@ SlashCmdList.LEFTINTERACT = function(message)
     elseif command == "mode" then
         if argument == "action" or argument == "world" then
             LeftInteractDB.mode = "action"
+            local applied = true
             if LeftInteractDB.enabled then
-                ApplyBindings(true)
+                applied = ApplyBindings(true)
             end
-            Print("Mode set to full world interaction.")
+            PrintSettingChange(applied, "Mode set to full world interaction.", "Full world interaction queued for after combat.", "Full world interaction saved for the next enable.")
         elseif argument == "mouseover" or argument == "npc" then
             LeftInteractDB.mode = "mouseover"
+            local applied = true
             if LeftInteractDB.enabled then
-                ApplyBindings(true)
+                applied = ApplyBindings(true)
             end
-            Print("Mode set to NPC mouseover.")
+            PrintSettingChange(applied, "Mode set to NPC mouseover.", "NPC mouseover mode queued for after combat.", "NPC mouseover mode saved for the next enable.")
         else
             Print("Modes: /leftinteract mode action  or  /leftinteract mode mouseover")
         end
     elseif command == "rightmove" then
         if argument == "on" or argument == "enable" then
             LeftInteractDB.rightMove = true
+            local applied = true
             if LeftInteractDB.enabled then
-                ApplyBindings(true)
+                applied = ApplyBindings(true)
             end
-            Print("Right click now controls forward movement. Hold left click to steer. Shift + right click keeps the original right-click action.")
+            PrintSettingChange(applied, "Right click now controls forward movement. Hold left click to steer. Shift + right click keeps the original right-click action.", "Right-click movement queued for after combat.", "Right-click movement saved for the next enable.")
         elseif argument == "off" or argument == "disable" then
             LeftInteractDB.rightMove = false
+            local applied = true
             if LeftInteractDB.enabled then
-                ApplyBindings(true)
+                applied = ApplyBindings(true)
             end
-            Print("Normal right-click behavior restored.")
+            PrintSettingChange(applied, "Normal right-click behavior restored.", "Normal right-click behavior queued for after combat.", "Normal right-click behavior saved for the next enable.")
         else
             Print("Use /leftinteract rightmove on  or  /leftinteract rightmove off")
         end
     elseif command == "movement" then
         if argument == "independent" or argument == "forward" then
             LeftInteractDB.movementMode = "independent"
+            local applied = true
             if LeftInteractDB.enabled then
-                ApplyBindings(true)
+                applied = ApplyBindings(true)
             end
-            Print("Independent movement enabled. Right click can be re-pressed while left remains held; W shares the client's forward state.")
+            PrintSettingChange(applied, "Independent movement enabled. Right click can be re-pressed while left remains held; W shares the client's forward state.", "Seamless-left-hold movement queued for after combat.", "Seamless-left-hold movement saved for the next enable.")
         elseif argument == "combined" or argument == "steer" then
             LeftInteractDB.movementMode = "combined"
+            local applied = true
             if LeftInteractDB.enabled then
-                ApplyBindings(true)
+                applied = ApplyBindings(true)
             end
-            Print("Combined movement enabled. W will not conflict; restarting right-click movement may require releasing left click.")
+            PrintSettingChange(applied, "Combined movement enabled. W will not conflict; restarting right-click movement may require releasing left click.", "W-compatible movement queued for after combat.", "W-compatible movement saved for the next enable.")
         else
             Print("Use /leftinteract movement independent or combined")
         end
@@ -264,7 +339,7 @@ local function CreateOptionsGUI()
 
     local frame = CreateFrame("Frame", "LeftInteractOptionsFrame", UIParent)
     frame:SetWidth(480)
-    frame:SetHeight(430)
+    frame:SetHeight(450)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
     frame:SetFrameStrata("DIALOG")
     frame:SetClampedToScreen(true)
@@ -418,10 +493,12 @@ local function CreateOptionsGUI()
 
     local hint = MakeLabel(frame, "Item dragging uses native click.  |  Shift + left is always native.", 11)
     hint:SetTextColor(0.7, 0.7, 0.7)
-    hint:SetPoint("BOTTOM", frame, "BOTTOM", 0, 42)
+    hint:SetPoint("BOTTOM", frame, "BOTTOM", 0, 54)
 
-    local status = MakeLabel(frame, "", 12)
-    status:SetPoint("BOTTOM", frame, "BOTTOM", 0, 22)
+    local status = MakeLabel(frame, "", 11)
+    status:SetWidth(440)
+    status:SetJustifyH("CENTER")
+    status:SetPoint("BOTTOM", frame, "BOTTOM", 0, 20)
     frame.statusText = status
 
     function frame:Refresh()
@@ -446,16 +523,19 @@ local function CreateOptionsGUI()
         self.mouseoverButton:SetText(mouseoverSelected and ">  NPC mouseover only" or "NPC mouseover only")
         if worldSelected then self.worldButton:LockHighlight() else self.worldButton:UnlockHighlight() end
         if mouseoverSelected then self.mouseoverButton:LockHighlight() else self.mouseoverButton:UnlockHighlight() end
-        local state = active and "Enabled" or "Disabled"
+        local state
         if pendingAction == "enable" then
-            state = "Enabling after combat"
+            state = "Disabled\nQueued: enable - " .. DesiredConfigSummary()
         elseif pendingAction == "disable" then
-            state = "Disabling after combat"
+            state = "Active: " .. EffectiveConfigSummary() .. "\nQueued: disable"
         elseif pendingAction == "refresh" then
-            state = "Enabled; changes queued"
+            state = "Active: " .. EffectiveConfigSummary() .. "\nQueued: " .. DesiredConfigSummary()
+        elseif active then
+            state = "Enabled - " .. EffectiveConfigSummary()
+        else
+            state = "Disabled - native bindings"
         end
-        local movement = LeftInteractDB.rightMove and (LeftInteractDB.movementMode or "combined") or "normal right click"
-        self.statusText:SetText("Status: " .. state .. "  |  Movement: " .. movement)
+        self.statusText:SetText(state)
         if pendingAction then
             self.statusText:SetTextColor(1, 0.75, 0.2)
         elseif active then

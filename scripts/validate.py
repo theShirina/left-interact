@@ -27,7 +27,7 @@ def require(condition: bool, message: str) -> None:
 def toc_value(text: str, key: str) -> str:
     match = re.search(rf"^## {re.escape(key)}:\s*(.+?)\s*$", text, re.MULTILINE)
     if not match:
-        raise AssertionError(f"Missing TOC field: {key}")
+        raise ValidationError(f"Missing TOC field: {key}")
     return match.group(1)
 
 
@@ -52,7 +52,10 @@ def main() -> int:
     for name in toc_files:
         require((ROOT / name).is_file(), f"TOC references missing file: {name}")
 
-    ast.parse(lua)
+    try:
+        ast.parse(lua)
+    except Exception as exc:
+        raise ValidationError(f"Lua syntax error: {exc}") from exc
 
     required_tokens = (
         'SetOverrideBinding(controller, true, "BUTTON1"',

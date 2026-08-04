@@ -2,6 +2,14 @@
 
 All notable changes appear here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.6.1] - 2026-08-04
+
+### Fixed
+
+- Show the last applied bindings separately from settings queued during combat.
+- Label slash-command setting changes as queued until combat ends.
+- Cancel a pending enable cleanly when the addon is already inactive.
+
 ## [1.6.0] - 2026-08-04
 
 ### Added
