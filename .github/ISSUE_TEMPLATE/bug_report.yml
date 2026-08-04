@@ -1,0 +1,79 @@
+name: Bug report
+description: Report an input, interaction, or client-compatibility problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Do not include account names, credentials, or private client files.
+
+  - type: input
+    id: client
+    attributes:
+      label: Client
+      description: Client name and build or patch version.
+      placeholder: "Project Ebonhold, WotLK 3.3.5a"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: movement
+    attributes:
+      label: Movement mode
+      options:
+        - Seamless left hold
+        - W-compatible
+        - Right-click movement disabled
+    validations:
+      required: true
+
+  - type: dropdown
+    id: interaction
+    attributes:
+      label: Interaction mode
+      options:
+        - NPCs and world objects
+        - NPC mouseover only
+    validations:
+      required: true
+
+  - type: textarea
+    id: sequence
+    attributes:
+      label: Exact input sequence
+      description: List the buttons or keys pressed, held, and released in order.
+      placeholder: |
+        1. Hold left click
+        2. Hold right click
+        3. Release right click
+    validations:
+      required: true
+
+  - type: dropdown
+    id: combat
+    attributes:
+      label: Did this happen in combat?
+      options:
+        - "No"
+        - "Yes"
+        - Both
+    validations:
+      required: true
+
+  - type: textarea
+    id: errors
+    attributes:
+      label: Lua error or chat warning
+      description: Paste only the error text. Remove personal paths or account information.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I tested after `/reload`.
+          required: true
+        - label: I removed account names, credentials, and private client data.
+          required: true

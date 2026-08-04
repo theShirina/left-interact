@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: Left Interact
+## Notes: Uses left click to interact with NPCs and world objects.
+## Author: Stefán (theShirina)
+## Version: 1.6.0
+## SavedVariables: LeftInteractDB
+
+LeftInteract.lua
