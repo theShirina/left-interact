@@ -1,5 +1,5 @@
 local ADDON_NAME = "LeftInteract"
-local ADDON_VERSION = GetAddOnMetadata and GetAddOnMetadata(ADDON_NAME, "Version") or "dev"
+local ADDON_VERSION = "1.6.2"
 
 LeftInteractDB = LeftInteractDB or {}
 
@@ -86,9 +86,10 @@ local function ApplyBindings(silent)
     local action = "TURNORACTION"
     cursorHasItem = CursorHasItem and CursorHasItem() and true or false
     if cursorHasItem then
-        -- Native left click is required to drop or delete an item carried by
-        -- the cursor. Interaction mode returns as soon as the cursor is clear.
-        action = "CAMERAORSELECTORMOVE"
+        -- Leave BUTTON1 completely unoverridden while an item is attached.
+        -- Ascension's unit-frame equip prompt depends on native UI drag dispatch,
+        -- which an override can consume even when it names the native world action.
+        action = nil
     elseif LeftInteractDB.mode == "mouseover" then
         action = "INTERACTMOUSEOVER"
     end
@@ -96,7 +97,9 @@ local function ApplyBindings(silent)
     -- TURNORACTION is the client's native right-click world action. It handles
     -- NPCs, loot, gathering nodes, and quest objects. The override is temporary:
     -- it does not rewrite bindings-cache.wtf.
-    SetOverrideBinding(controller, true, "BUTTON1", action)
+    if action then
+        SetOverrideBinding(controller, true, "BUTTON1", action)
+    end
 
     -- The 3.3.5 client offers two useful protected movement actions. MOVEFORWARD
     -- can be re-pressed while left stays held, while MOVEANDSTEER does not share
@@ -332,6 +335,102 @@ local function SetupEmptyClickDeselect()
     end)
 end
 
+local CHANGELOG_TEXT = [[
+v1.6.2 - 2026-08-04
+CHANGED
+- Make W-compatible movement the fresh-install default.
+- Preserve existing users' selected movement mode during upgrades.
+- Clarify the unavoidable legacy-client tradeoff in the GUI and documentation.
+- Document Shift + left click for ground-spell placement in combat.
+- Document Ascension's @cursor macro option for one-key ground placement.
+- Add a distinct settings-panel notice with an example @cursor macro.
+- Add a one-click macro selector for copying with Ctrl+C.
+- Add an in-game What's New changelog page with back navigation.
+- Keep the macro-copy help text inside the settings panel.
+- Keep the displayed version correct when the legacy client caches addon metadata.
+- Restore native unit-frame equip prompts while dragging an inventory item.
+
+v1.6.1 - 2026-08-04
+FIXED
+- Show the last applied bindings separately from settings queued during combat.
+- Label slash-command setting changes as queued until combat ends.
+- Cancel a pending enable cleanly when the addon is already inactive.
+
+v1.6.0 - 2026-08-04
+ADDED
+- Polished dependency-free settings panel with clearer sections, selected states, and mode descriptions.
+- Dynamic GUI version read from the addon metadata.
+- Public documentation, validation scripts, reproducible packaging, and CI.
+
+CHANGED
+- Restored Seamless left hold as the default movement mode.
+- Improved minimap-button help and settings layout.
+
+REMOVED
+- Failed experimental W Priority mode.
+
+v1.5.0 - 2026-08-04
+ADDED
+- Optional short empty-world click deselection outside combat.
+- GUI control for experimental deselection.
+
+v1.3.0 - 2026-08-04
+ADDED
+- Draggable minimap button.
+- In-game settings panel.
+- Selectable movement and interaction modes.
+
+v1.2.0 - 2026-08-04
+ADDED
+- Native inventory-item dragging and delete confirmation support.
+- Selectable Independent and Combined movement modes.
+
+v1.0.0 - 2026-08-04
+ADDED
+- Initial left-click world interaction addon for WotLK 3.3.5a.
+]]
+
+local function CreateChangelogPage(parent)
+    local page = CreateFrame("Frame", "LeftInteractChangelogPage", parent)
+    page:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, -68)
+    page:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -12, 12)
+    page:SetFrameLevel(parent:GetFrameLevel() + 5)
+    page:EnableMouse(true)
+
+    local background = page:CreateTexture(nil, "BACKGROUND")
+    background:SetTexture("Interface\\Buttons\\WHITE8X8")
+    background:SetVertexColor(0.025, 0.03, 0.04, 1)
+    background:SetAllPoints(page)
+
+    local title = MakeLabel(page, "WHAT'S NEW", 18)
+    title:SetTextColor(0.35, 0.85, 1)
+    title:SetPoint("TOPLEFT", page, "TOPLEFT", 18, -18)
+
+    local back = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    back:SetWidth(135); back:SetHeight(28)
+    back:SetPoint("TOPRIGHT", page, "TOPRIGHT", -18, -14)
+    back:SetText("BACK TO SETTINGS")
+    back:SetScript("OnClick", function() page:Hide() end)
+
+    local scroll = CreateFrame("ScrollFrame", "LeftInteractChangelogScrollFrame", page, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", page, "TOPLEFT", 20, -58)
+    scroll:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -38, 18)
+
+    local scrollChild = CreateFrame("Frame", nil, scroll)
+    scrollChild:SetWidth(390); scrollChild:SetHeight(1020)
+    scroll:SetScrollChild(scrollChild)
+
+    local text = MakeLabel(scrollChild, CHANGELOG_TEXT, 12)
+    text:SetTextColor(0.9, 0.92, 0.94)
+    text:SetWidth(380)
+    text:SetJustifyH("LEFT")
+    text:SetJustifyV("TOP")
+    text:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
+
+    page:Hide()
+    return page
+end
+
 local function CreateOptionsGUI()
     if optionsFrame then
         return
@@ -339,8 +438,8 @@ local function CreateOptionsGUI()
 
     local frame = CreateFrame("Frame", "LeftInteractOptionsFrame", UIParent)
     frame:SetWidth(480)
-    frame:SetHeight(450)
-    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
+    frame:SetHeight(590)
+    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
     frame:SetFrameStrata("DIALOG")
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
@@ -400,6 +499,12 @@ local function CreateOptionsGUI()
         frame:Refresh()
     end)
     frame.enabledCheck = enabled
+
+    local whatsNew = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    whatsNew:SetWidth(110); whatsNew:SetHeight(26)
+    whatsNew:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -76)
+    whatsNew:SetText("WHAT'S NEW")
+    whatsNew:SetScript("OnClick", function() frame.changelogPage:Show() end)
 
     local movementCard = frame:CreateTexture(nil, "BACKGROUND")
     movementCard:SetTexture("Interface\\Buttons\\WHITE8X8")
@@ -491,7 +596,72 @@ local function CreateOptionsGUI()
     end)
     frame.deselectCheck = deselect
 
-    local hint = MakeLabel(frame, "Item dragging uses native click.  |  Shift + left is always native.", 11)
+    local groundCard = frame:CreateTexture(nil, "BACKGROUND")
+    groundCard:SetTexture("Interface\\Buttons\\WHITE8X8")
+    groundCard:SetVertexColor(0.11, 0.075, 0.035, 0.94)
+    groundCard:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -382)
+    groundCard:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -18, -516)
+
+    local groundAccent = frame:CreateTexture(nil, "ARTWORK")
+    groundAccent:SetTexture("Interface\\Buttons\\WHITE8X8")
+    groundAccent:SetVertexColor(1, 0.62, 0.12, 1)
+    groundAccent:SetPoint("TOPLEFT", groundCard, "TOPLEFT", 0, 0)
+    groundAccent:SetPoint("BOTTOMLEFT", groundCard, "BOTTOMLEFT", 0, 0)
+    groundAccent:SetWidth(3)
+
+    local groundTitle = MakeLabel(frame, "GROUND-TARGET SPELLS", 13)
+    groundTitle:SetTextColor(1, 0.75, 0.2)
+    groundTitle:SetPoint("TOPLEFT", frame, "TOPLEFT", 30, -394)
+
+    local groundText = MakeLabel(frame, "Left Interact cannot safely place targeting circles during combat. Ascension users need an @cursor macro to cast directly beneath the pointer.", 11)
+    groundText:SetTextColor(0.9, 0.9, 0.9)
+    groundText:SetWidth(410)
+    groundText:SetJustifyH("LEFT")
+    groundText:SetPoint("TOPLEFT", groundTitle, "BOTTOMLEFT", 0, -6)
+
+    local groundMacroText = "#showtooltip Death and Decay\n/cast [@cursor] Death and Decay"
+    local groundMacro = CreateFrame("EditBox", nil, frame)
+    groundMacro:SetWidth(290); groundMacro:SetHeight(34)
+    groundMacro:SetPoint("TOPLEFT", groundText, "BOTTOMLEFT", 4, -5)
+    groundMacro:SetMultiLine(true)
+    groundMacro:SetAutoFocus(false)
+    groundMacro:SetFont("Fonts\\FRIZQT__.TTF", 12)
+    groundMacro:SetTextColor(1, 0.84, 0.42)
+    groundMacro:SetTextInsets(4, 4, 2, 2)
+    groundMacro:SetText(groundMacroText)
+    groundMacro:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    groundMacro:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+    groundMacro:SetScript("OnEditFocusLost", function(self) self:SetText(groundMacroText) end)
+    groundMacro:SetScript("OnTextChanged", function(self, userInput)
+        if userInput and self:GetText() ~= groundMacroText then
+            self:SetText(groundMacroText)
+            self:HighlightText()
+        end
+    end)
+
+    local groundMacroBackground = frame:CreateTexture(nil, "BACKGROUND")
+    groundMacroBackground:SetTexture("Interface\\Buttons\\WHITE8X8")
+    groundMacroBackground:SetVertexColor(0.025, 0.03, 0.035, 0.96)
+    groundMacroBackground:SetPoint("TOPLEFT", groundMacro, "TOPLEFT", -3, 2)
+    groundMacroBackground:SetPoint("BOTTOMRIGHT", groundMacro, "BOTTOMRIGHT", 3, -2)
+
+    local copyMacro = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    copyMacro:SetWidth(105); copyMacro:SetHeight(28)
+    copyMacro:SetPoint("LEFT", groundMacro, "RIGHT", 12, 0)
+    copyMacro:SetText("SELECT TO COPY")
+    copyMacro:SetScript("OnClick", function()
+        groundMacro:SetText(groundMacroText)
+        groundMacro:SetFocus()
+        groundMacro:HighlightText()
+    end)
+
+    local groundFallback = MakeLabel(frame, "SELECT TO COPY, then Ctrl+C.\n@mouseover targets a unit. Shift + left places reticles.", 11)
+    groundFallback:SetTextColor(0.7, 0.75, 0.78)
+    groundFallback:SetWidth(410)
+    groundFallback:SetJustifyH("LEFT")
+    groundFallback:SetPoint("TOPLEFT", groundMacro, "BOTTOMLEFT", 0, -5)
+
+    local hint = MakeLabel(frame, "Item drag: native. Shift + left: selection, camera, ground spells.", 11)
     hint:SetTextColor(0.7, 0.7, 0.7)
     hint:SetPoint("BOTTOM", frame, "BOTTOM", 0, 54)
 
@@ -507,14 +677,14 @@ local function CreateOptionsGUI()
         self.deselectCheck:SetChecked(LeftInteractDB.emptyClickDeselect and true or false)
         local combinedSelected = LeftInteractDB.movementMode == "combined"
         local independentSelected = LeftInteractDB.movementMode == "independent"
-        self.combinedButton:SetText(combinedSelected and ">  W-compatible" or "W-compatible")
+        self.combinedButton:SetText(combinedSelected and ">  W-compatible (default)" or "W-compatible (default)")
         self.independentButton:SetText(independentSelected and ">  Seamless left hold" or "Seamless left hold")
         if combinedSelected then self.combinedButton:LockHighlight() else self.combinedButton:UnlockHighlight() end
         if independentSelected then self.independentButton:LockHighlight() else self.independentButton:UnlockHighlight() end
         if independentSelected then
-            self.movementHelp:SetText("Keeps left steering active when right click is released. Forward keys share the old client state.")
+            self.movementHelp:SetText("Mouse-first: left keeps steering after right release. W and right click can stop each other.")
         else
-            self.movementHelp:SetText("Keeps W independent from mouse movement. Releasing right click may reset a held left click.")
+            self.movementHelp:SetText("Default: W stays reliable. After right release, re-press left before steering again.")
         end
 
         local worldSelected = LeftInteractDB.mode == "action"
@@ -545,6 +715,7 @@ local function CreateOptionsGUI()
         end
     end
 
+    frame.changelogPage = CreateChangelogPage(frame)
     frame:SetScript("OnShow", function(self) self:Refresh() end)
 end
 
@@ -623,6 +794,7 @@ controller:SetScript("OnEvent", function(self, event, ...)
             return
         end
 
+        local firstRun = next(LeftInteractDB) == nil
         if LeftInteractDB.enabled == nil then
             LeftInteractDB.enabled = true
         end
@@ -635,14 +807,15 @@ controller:SetScript("OnEvent", function(self, event, ...)
         if LeftInteractDB.emptyClickDeselect == nil then
             LeftInteractDB.emptyClickDeselect = true
         end
-        -- Version 1.4.1 removes W Priority and returns to seamless left hold.
-        -- Future GUI choices remain unchanged.
-        if not LeftInteractDB.settingsVersion or LeftInteractDB.settingsVersion < 6 then
-            LeftInteractDB.movementMode = "independent"
-            LeftInteractDB.settingsVersion = 6
-        elseif LeftInteractDB.movementMode ~= "independent" then
+        -- W-compatible is safest for fresh installs because MOVEFORWARD and W
+        -- share one non-reference-counted state in legacy clients. Preserve any
+        -- valid movement mode an existing user has already chosen.
+        if firstRun then
+            LeftInteractDB.movementMode = "combined"
+        elseif LeftInteractDB.movementMode ~= "independent" and LeftInteractDB.movementMode ~= "combined" then
             LeftInteractDB.movementMode = "combined"
         end
+        LeftInteractDB.settingsVersion = 7
 
         CreateOptionsGUI()
         CreateMinimapButton()

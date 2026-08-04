@@ -29,9 +29,19 @@ jobs:
           sudo apt-get install --no-install-recommends --yes lua5.1
 
       - name: Validate addon
+        run: python scripts/validate.py
+
+      - name: Compile with Lua 5.1
+        run: luac5.1 -p LeftInteract.lua
+
+      - name: Test movement defaults
         run: |
-          python scripts/validate.py
-          luac5.1 -p LeftInteract.lua
+          lua5.1 tests/test_defaults.lua new
+          lua5.1 tests/test_defaults.lua existing-independent
+          lua5.1 tests/test_defaults.lua existing-independent-without-enabled
+          lua5.1 tests/test_defaults.lua existing-combined
+          lua5.1 tests/test_defaults.lua item-native-dispatch
+          lua5.1 tests/test_defaults.lua changelog-page
 
       - name: Build release package
         run: python scripts/build_release.py

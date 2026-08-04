@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 TOC = ROOT / "LeftInteract.toc"
 LUA = ROOT / "LeftInteract.lua"
 PACKAGE_README = ROOT / "README.txt"
+PUBLIC_README = ROOT / "README.md"
+CHANGELOG = ROOT / "CHANGELOG.md"
 
 
 class ValidationError(Exception):
@@ -35,6 +37,8 @@ def main() -> int:
     toc = TOC.read_text(encoding="utf-8")
     lua = LUA.read_text(encoding="utf-8")
     package_readme = PACKAGE_README.read_text(encoding="utf-8")
+    public_readme = PUBLIC_README.read_text(encoding="utf-8")
+    changelog = CHANGELOG.read_text(encoding="utf-8")
 
     interface = toc_value(toc, "Interface")
     version = toc_value(toc, "Version")
@@ -42,6 +46,8 @@ def main() -> int:
     require(interface == "30300", f"Expected Interface 30300, got {interface}")
     require(bool(re.fullmatch(r"\d+\.\d+\.\d+", version)), f"Invalid semantic version: {version}")
     require(package_readme.startswith(f"LEFT INTERACT {version}\n"), "README.txt version differs from TOC")
+    require(f'local ADDON_VERSION = "{version}"' in lua, "GUI source version differs from TOC")
+    require("GetAddOnMetadata" not in lua, "GUI version must not use restart-cached addon metadata")
 
     toc_files = [
         line.strip()
@@ -70,6 +76,43 @@ def main() -> int:
     )
     for token in required_tokens:
         require(token in lua, f"Required compatibility behavior missing: {token}")
+
+    ground_spell_tokens = (
+        "#showtooltip Death and Decay",
+        "/cast [@cursor] Death and Decay",
+        "@mouseover targets a unit",
+    )
+    require("GROUND-TARGET SPELLS" in lua, "Ground-target notice missing from settings GUI")
+    require("SELECT TO COPY" in lua, "Ground-target macro copy button missing from settings GUI")
+    require("HighlightText" in lua, "Ground-target macro copy selection behavior missing")
+    require("groundFallback:SetWidth(410)" in lua, "Ground-target copy help has no bounded width")
+    require("SELECT TO COPY, then Ctrl+C.\\n@mouseover targets a unit" in lua, "Ground-target copy help must use two lines")
+    require("GROUND-TARGET SPELLS" in package_readme, "Ground-target section missing from README.txt")
+    require("## Ground-target spells on Ascension" in public_readme, "Ground-target section missing from README.md")
+    require("SELECT TO COPY" in package_readme, "README.txt macro-copy instructions missing")
+    require("SELECT TO COPY" in public_readme, "README.md macro-copy instructions missing")
+    normalized_ground_sources = (
+        ("settings GUI", " ".join(lua.replace("`", "").split())),
+        ("README.txt", " ".join(package_readme.replace("`", "").split())),
+        ("README.md", " ".join(public_readme.replace("`", "").split())),
+    )
+    for token in ground_spell_tokens:
+        for source_name, source_text in normalized_ground_sources:
+            require(token in source_text, f"{source_name} ground-target guidance missing: {token}")
+
+    require("CreateChangelogPage" in lua, "In-game changelog page missing")
+    require("WHAT'S NEW" in lua, "In-game changelog button missing")
+    require("BACK TO SETTINGS" in lua, "Changelog back-navigation button missing")
+    require("LeftInteractChangelogFrame" not in lua, "Changelog must not create a second top-level window")
+    normalized_lua = " ".join(lua.replace("`", "").split())
+    version_entries = re.findall(r"^## \[(\d+\.\d+\.\d+)\] - (\d{4}-\d{2}-\d{2})$", changelog, re.MULTILINE)
+    require(bool(version_entries), "CHANGELOG.md contains no release entries")
+    for release_version, release_date in version_entries:
+        require(f"v{release_version} - {release_date}" in normalized_lua, f"In-game changelog missing v{release_version}")
+    changelog_bullets = re.findall(r"^- (.+)$", changelog, re.MULTILINE)
+    for bullet in changelog_bullets:
+        normalized_bullet = " ".join(bullet.replace("`", "").split())
+        require(normalized_bullet in normalized_lua, f"In-game changelog missing entry: {normalized_bullet}")
 
     forbidden_tokens = ("api_key", "password =", "token =", "webhook")
     lowered = lua.lower()
