@@ -10,7 +10,7 @@ Keep changes small and compatible with the WotLK 3.3.5a Lua 5.1 environment. Avo
 
 1. Describe the client and build you tested.
 2. Keep protected binding changes out of combat or defer them until combat ends.
-3. Do not edit the user's permanent `bindings-cache.wtf` files.
+3. Do not edit the permanent `bindings-cache.wtf` files.
 4. Preserve Shift + left click and Shift + right click as native fallbacks.
 5. Run:
 
