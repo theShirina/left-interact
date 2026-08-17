@@ -89,11 +89,11 @@ Other commands:
 
 This is a client limitation; the addon exposes both native choices rather than hiding the tradeoff.
 
-## Ground-target spells on Ascension
+## Ground-target spells
 
 Left Interact uses unmodified left click for world interaction. WoW does not allow the addon to switch that protected binding after a targeting circle opens during combat.
 
-For ground-targeted abilities on Ascension, use an `@cursor` macro. `@cursor` casts at the ground beneath your pointer; `@mouseover` targets a unit and does not mean a ground position.
+For ground-targeted abilities, use an `@cursor` macro. `@cursor` casts at the ground beneath your pointer; `@mouseover` targets a unit and does not mean a ground position.
 
 Example:
 
@@ -108,7 +108,7 @@ The addon settings panel includes the same macro in a text field. Click **SELECT
 
 ## Known limitations
 
-- Clients without Ascension-style `@cursor` support require **Shift + left click** to place a ground-target spell while Left Interact is enabled.
+- Clients without `@cursor` support require **Shift + left click** to place a ground-target spell while Left Interact is enabled.
 - Empty-world deselection is experimental and only runs outside combat. `ClearTarget` is protected, and some client forks can reject it. Shift + left click remains the safe native fallback.
 - A world object has no `mouseover` unit token. Empty-world deselection can also clear an existing target when interacting with a game object.
 - Full world interaction and native deselection cannot share one protected binding in a normal 3.3.5 addon.
