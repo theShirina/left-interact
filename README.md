@@ -26,7 +26,7 @@ Left Interact has no dependencies, telemetry, network requests, or bundled libra
 - Interface: `30300`
 - Lua: 5.1
 - Designed for WotLK 3.3.5a-derived clients that expose the standard binding API.
-- Tested against local Project Ebonhold and Project Ascension client files.
+- Tested against local local WoW 3.3.5a client files.
 
 Client forks can change protected input behavior. See [Known limitations](#known-limitations).
 
