@@ -1,6 +1,5 @@
-# Changelog
+# Left Interact change log
 
-All notable changes appear here. This project follows [Semantic Versioning](https://semver.org/).
 
 ## [1.6.2] - 2026-08-04
 
@@ -10,7 +9,7 @@ All notable changes appear here. This project follows [Semantic Versioning](http
 - Preserve existing users' selected movement mode during upgrades.
 - Clarify the unavoidable legacy-client tradeoff in the GUI and documentation.
 - Document Shift + left click for ground-spell placement in combat.
-- Document Ascension's `@cursor` macro option for one-key ground placement.
+- Document an `@cursor` macro option for one-key ground placement.
 - Add a distinct settings-panel notice with an example `@cursor` macro.
 - Add a one-click macro selector for copying with Ctrl+C.
 - Add an in-game What's New changelog page with back navigation.
